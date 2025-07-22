@@ -280,10 +280,11 @@ if __name__ == "__main__":
             outfile.write(json.dumps(items, indent=4))
         exit()
 
+    # for updating from json
     if args.insert and args.input_json:
         conn, cursor = get_db(args.db)
         with open(args.input_json, "r") as infile:
-            data = json.loads(infile.read())
+            data = [json.loads(line) for line in infile.readlines()]
         with conn:
             for item in data:
                 if not item.get("path") or not item.get("label"):

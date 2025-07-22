@@ -70,7 +70,18 @@ def get_images(directory, label='unlabeled'):
         print(
             "No images to label. Either:\n\t1) All images are already labeled,\n\t2) You need to initialize the db (pass --init) or, \n\t3) No images are available to label in the provided directory."
         )
-    return images
+
+    
+    # skip images that don't exist
+    existing_images = []
+    for path_tup in images:
+        path = path_tup[0]
+        if not os.path.exists(path):
+            logger.error(f"Image {path} does not exist. Ignoring...")
+            continue
+        existing_images.append((path, ))
+    logger.info(f"There are {len(existing_images)} images to label")
+    return existing_images
 
 
 def resize_preserve_aspect_ratio(image, max_size):

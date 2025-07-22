@@ -24,7 +24,7 @@ def create_table():
 
 def set_label(filename, label):
     cursor.execute("UPDATE images SET label = ? where path = ?", (label, filename))
-    print("setting {} to {}".format(filename, label))
+    print(json.dumps({'path': filename, 'label': label}))
 
 
 def initialize_db(directory):

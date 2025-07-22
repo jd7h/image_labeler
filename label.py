@@ -179,6 +179,8 @@ def cycle_images(event):
         if answer == "y":
             save_image_labels()
         done = True
+    elif event.key == 'q':
+        exit()
 
 
 def get_args():

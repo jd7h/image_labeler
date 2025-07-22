@@ -55,15 +55,15 @@ def query_results(conn):
     return [r for r in conn.execute("SELECT * from images")]
 
 
-def get_images(directory):
+def get_images(directory, label='unlabeled'):
     try:
         result = cursor.execute(
-            "select path from images where label = '' or label = 'unlabeled'"
+            f"select path from images where label = '' or label = '{label}'"
         )
     except sqlite3.OperationalError:
         initialize_db(directory)
         result = cursor.execute(
-            "select path from images where label = '' or label = 'unlabeled'"
+            f"select path from images where label = '' or label = '{label}'"
         )
     images = result.fetchall()
     if not images:
@@ -232,6 +232,11 @@ def get_args():
         help="The path to a json to insert into the database. Should end with .json",
         default=None,
     )
+    parser.add_argument(
+        "--relabel_positive",
+        help="Pass this to relabel all images with label == 1",
+        action="store_true",
+    )
     args = parser.parse_args()
     if args.db is None:
         args.db = os.path.join(args.directory, "images.db")
@@ -287,14 +292,20 @@ if __name__ == "__main__":
                     "INSERT OR IGNORE INTO images(path, label) VALUES (?, ?)",
                     (item["path"], item["label"]),
                 )
+                cursor.execute("UPDATE images SET label = ? where path = ?", (item["label"], item["path"]))
         exit()
+
 
     else:
         conn, cursor = get_db(args.db)
         with conn:
             if args.init:
                 initialize_db(args.directory)
-            images = get_images(args.directory)
+
+            if args.relabel_positive:
+                images = get_images(args.directory, label='1')
+            else:
+                images = get_images(args.directory)
             if images:
                 chunk_generator = chunks(images, num_images**2)
                 first = True

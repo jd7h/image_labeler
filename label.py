@@ -4,6 +4,7 @@ import argparse
 import os
 import sqlite3
 import tkinter
+from loguru import logger
 
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -111,8 +112,13 @@ def setup_plots(num_images, figure_inches):
 
 
 def show_image(filename, ax, i):
-    image = Image.open(filename)
-    image = resize_preserve_aspect_ratio(image, max_im_size_pixels)
+    logger.debug(f"Showing image {filename}")
+    try:
+        image = Image.open(filename)
+        image = resize_preserve_aspect_ratio(image, max_im_size_pixels)
+    except Exception as e:
+        logger.exception(e)
+        image = None
 
     ax.set_axis_off()
     ax.set_picker(5)

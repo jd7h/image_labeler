@@ -27,7 +27,7 @@ def set_label(filename, label):
     print(json.dumps({'path': filename, 'label': label}))
 
 
-def initialize_db(directory):
+def initialize_db(directory, delete_missing: bool = False):
     print("Initializing database of images...")
     create_table()
     for dirpath, dirnames, filenames in os.walk(directory):
@@ -41,6 +41,18 @@ def initialize_db(directory):
                     "INSERT OR IGNORE INTO images(path, label) VALUES (?, ?)",
                     (os.path.join(dirpath, filename), "unlabeled"),
                 )
+    
+    conn.commit()
+    result = cursor.execute(
+            "select path from images"
+        )
+
+    missing_paths = [path_tup for path_tup in result if not os.path.exists(path_tup[0])]
+    for path_tup in missing_paths:
+        logger.info(f"Path {path_tup[0]} does not exist! Deleting... ")
+
+    if delete_missing and missing_paths:
+        cursor.executemany("DELETE FROM images WHERE path = ?", missing_paths)
     conn.commit()
     print("Done. Ready to label images.")
 
@@ -60,11 +72,10 @@ def get_images(directory, label='unlabeled'):
         result = cursor.execute(
             f"select path from images where label = '' or label = '{label}'"
         )
-    except sqlite3.OperationalError:
-        initialize_db(directory)
-        result = cursor.execute(
-            f"select path from images where label = '' or label = '{label}'"
-        )
+    except sqlite3.OperationalError as e:
+        logger.exception(e)
+        exit()
+
     images = result.fetchall()
     if not images:
         print(
@@ -77,7 +88,7 @@ def get_images(directory, label='unlabeled'):
     for path_tup in images:
         path = path_tup[0]
         if not os.path.exists(path):
-            logger.error(f"Image {path} does not exist. Ignoring...")
+            logger.warning(f"Image {path} does not exist. Ignoring...")
             continue
         existing_images.append((path, ))
     logger.info(f"There are {len(existing_images)} images to label")
@@ -309,13 +320,16 @@ if __name__ == "__main__":
                 cursor.execute("UPDATE images SET label = ? where path = ?", (item["label"], item["path"]))
         exit()
 
+    if args.init:
+        conn, cursor = get_db(args.db)
+        with conn:
+            if args.init:
+                initialize_db(args.directory, delete_missing=True)
+        exit()
 
     else:
         conn, cursor = get_db(args.db)
         with conn:
-            if args.init:
-                initialize_db(args.directory)
-
             if args.relabel_positive:
                 images = get_images(args.directory, label='1')
             else:
